@@ -34,9 +34,49 @@ jobs:
       working-directory: terraform
       continue-on-error: true
       run: |
-        # Try to import existing resources
-        terraform import aws_lambda_function.hello simple-serverless-hello || true
-        terraform import aws_iam_role.lambda_role simple-serverless-lambda-role || true
+        echo "Checking existing AWS resources..."
+        
+        # Check if Lambda function exists
+        if aws lambda get-function --function-name simple-serverless-hello; then
+          echo "Lambda function exists, importing..."
+          terraform import aws_lambda_function.hello simple-serverless-hello || true
+        fi
+        
+        # Check if IAM role exists
+        if aws iam get-role --role-name simple-serverless-lambda-role; then
+          echo "IAM role exists, importing..."
+          terraform import aws_iam_role.lambda_role simple-serverless-lambda-role || true
+        fi
+        
+        # Check if API Gateway exists
+        API_ID=$(aws apigateway get-rest-apis --query "items[?name=='simple-serverless-api'].id" --output text)
+        if [ ! -z "$API_ID" ] && [ "$API_ID" != "None" ]; then
+          echo "API Gateway exists, importing..."
+          terraform import aws_api_gateway_rest_api.api $API_ID || true
+        fi
+
+    - name: Force destroy existing resources with AWS CLI
+      continue-on-error: true
+      run: |
+        echo "🗑️ Force deleting AWS resources via CLI..."
+        
+        # Delete Lambda function
+        aws lambda delete-function --function-name simple-serverless-hello || echo "Lambda function not found"
+        
+        # Delete API Gateway
+        API_ID=$(aws apigateway get-rest-apis --query "items[?name=='simple-serverless-api'].id" --output text)
+        if [ ! -z "$API_ID" ] && [ "$API_ID" != "None" ]; then
+          aws apigateway delete-rest-api --rest-api-id $API_ID || echo "API Gateway deletion failed"
+        fi
+        
+        # Detach policy from IAM role
+        aws iam detach-role-policy --role-name simple-serverless-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole || echo "Policy detach failed"
+        
+        # Delete IAM role
+        aws iam delete-role --role-name simple-serverless-lambda-role || echo "IAM role deletion failed"
+        
+        # Delete CloudWatch log groups
+        aws logs delete-log-group --log-group-name /aws/lambda/simple-serverless-hello || echo "Log group deletion failed"
 
     - name: Destroy AWS Resources
       working-directory: terraform
