@@ -1,8 +1,15 @@
-name: Simple Destroy
+name: Destroy Resources
 
 on:
   workflow_dispatch:
     inputs:
+      method:
+        description: 'Choose destroy method'
+        required: true
+        type: choice
+        options:
+        - terraform-destroy
+        - force-delete-all
       confirm:
         description: 'Type DELETE to confirm'
         required: true
@@ -24,10 +31,74 @@ jobs:
         aws-region: ap-southeast-1
     
     - name: Setup Terraform
+      if: github.event.inputs.method == 'terraform-destroy'
       uses: hashicorp/setup-terraform@v2
     
-    - name: Destroy
+    - name: 🗑️ Terraform Destroy
+      if: github.event.inputs.method == 'terraform-destroy'
       working-directory: terraform
       run: |
+        echo "🔧 Running Terraform destroy..."
         terraform init
         terraform destroy -auto-approve
+        echo "✅ Terraform destroy completed!"
+    
+    - name: 🗑️ Force Delete All Resources
+      if: github.event.inputs.method == 'force-delete-all'
+      run: |
+        echo "🚨 Force deleting ALL simple-serverless resources..."
+        
+        # Delete Lambda Functions
+        echo "Deleting Lambda functions..."
+        aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `simple-serverless`)].FunctionName' --output text | tr '\t' '\n' | while read func; do
+          if [ ! -z "$func" ]; then
+            echo "Deleting Lambda: $func"
+            aws lambda delete-function --function-name "$func" || echo "Failed to delete $func"
+          fi
+        done
+        
+        # Delete API Gateways
+        echo "Deleting API Gateways..."
+        aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].{id:id,name:name}' --output text | while read -r id name; do
+          if [ ! -z "$id" ]; then
+            echo "Deleting API Gateway: $name ($id)"
+            aws apigateway delete-rest-api --rest-api-id "$id" || echo "Failed to delete $id"
+          fi
+        done
+        
+        # Delete IAM Roles
+        echo "Deleting IAM roles..."
+        aws iam list-roles --query 'Roles[?starts_with(RoleName, `simple-serverless`)].RoleName' --output text | tr '\t' '\n' | while read role; do
+          if [ ! -z "$role" ]; then
+            echo "Processing role: $role"
+            # Detach policies and delete role
+            aws iam list-attached-role-policies --role-name "$role" --query 'AttachedPolicies[].PolicyArn' --output text | tr '\t' '\n' | while read policy; do
+              if [ ! -z "$policy" ]; then
+                aws iam detach-role-policy --role-name "$role" --policy-arn "$policy" || true
+              fi
+            done
+            aws iam delete-role --role-name "$role" || echo "Failed to delete role $role"
+          fi
+        done
+        
+        echo "✅ Force delete completed!"
+    
+    - name: ✅ Verify Deletion
+      run: |
+        echo "=================================="
+        echo "🔍 Verifying deletion..."
+        echo "=================================="
+        
+        LAMBDAS=$(aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `simple-serverless`)].FunctionName' --output text)
+        APIS=$(aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].name' --output text)
+        ROLES=$(aws iam list-roles --query 'Roles[?starts_with(RoleName, `simple-serverless`)].RoleName' --output text)
+        
+        if [ -z "$LAMBDAS" ] && [ -z "$APIS" ] && [ -z "$ROLES" ]; then
+          echo "🎉 All resources deleted successfully!"
+        else
+          echo "⚠️ Some resources may still exist:"
+          [ ! -z "$LAMBDAS" ] && echo "Lambdas: $LAMBDAS"
+          [ ! -z "$APIS" ] && echo "APIs: $APIS"
+          [ ! -z "$ROLES" ] && echo "Roles: $ROLES"
+        fi
+        echo "=================================="

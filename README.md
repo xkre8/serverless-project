@@ -21,19 +21,12 @@ src/hello/index.js          # Lambda function
 terraform/main.tf           # Infrastructure
 .github/workflows/          # CI/CD workflows
 ├── simple-deploy.yml       # Auto deploy on push
-└── simple-destroy.yml      # Manual destroy
+└── simple-destroy.yml      # Manual destroy (2 options)
 ```
 
 ## Quick Deploy
 1. Push to GitHub → Auto deploy
-2. ดู Actions output จะเห็น:
-```
-🚀 DEPLOYMENT SUCCESSFUL!
-📍 API URL: https://xxx.execute-api.ap-southeast-1.amazonaws.com/prod/hello
-🧪 Test your API: curl https://xxx...
-📋 Response: {"message":"Hello from Serverless!","timestamp":"..."}
-✅ API is working!
-```
+2. Get API URL from Actions output
 
 ## API Response
 ```json
