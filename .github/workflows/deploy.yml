@@ -63,7 +63,11 @@ jobs:
         API_URL=$(terraform output -raw api_url)
         echo "🚀 **Deployment Successful!**" >> $GITHUB_STEP_SUMMARY
         echo "**API URL:** $API_URL" >> $GITHUB_STEP_SUMMARY
-        echo "**Test:** \`curl $API_URL\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Test Command:** \`curl $API_URL\`" >> $GITHUB_STEP_SUMMARY
+        echo ""
+        echo "✅ Deployment completed!"
+        echo "📍 API URL: $API_URL"
+        echo "🧪 Test: curl $API_URL"
 
   test:
     runs-on: ubuntu-latest
