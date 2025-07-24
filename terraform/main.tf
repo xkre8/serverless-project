@@ -14,7 +14,7 @@ provider "aws" {
 # Lambda function
 resource "aws_lambda_function" "hello" {
   filename         = "../dist/hello.zip"
-  function_name    = "simple-serverless-hello"
+  function_name    = "simple-serverless-hello-v2"  # เปลี่ยนชื่อใหม่
   role            = aws_iam_role.lambda_role.arn
   handler         = "index.handler"
   runtime         = "nodejs18.x"
@@ -29,7 +29,7 @@ resource "aws_lambda_function" "hello" {
 
 # IAM role for Lambda
 resource "aws_iam_role" "lambda_role" {
-  name = "simple-serverless-lambda-role"
+  name = "simple-serverless-lambda-role-v2"  # เปลี่ยนชื่อใหม่
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -52,8 +52,8 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 
 # API Gateway
 resource "aws_api_gateway_rest_api" "api" {
-  name        = "simple-serverless-api"
-  description = "Simple Serverless API"
+  name        = "simple-serverless-api-v2"  # เปลี่ยนชื่อใหม่
+  description = "Simple Serverless API v2"
 }
 
 resource "aws_api_gateway_resource" "hello" {

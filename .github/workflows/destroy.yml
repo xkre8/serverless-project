@@ -60,23 +60,32 @@ jobs:
       run: |
         echo "🗑️ Force deleting AWS resources via CLI..."
         
-        # Delete Lambda function
-        aws lambda delete-function --function-name simple-serverless-hello || echo "Lambda function not found"
+        # Delete old Lambda functions
+        aws lambda delete-function --function-name simple-serverless-hello || echo "Old Lambda function not found"
+        aws lambda delete-function --function-name simple-serverless-hello-v2 || echo "New Lambda function not found"
         
-        # Delete API Gateway
-        API_ID=$(aws apigateway get-rest-apis --query "items[?name=='simple-serverless-api'].id" --output text)
-        if [ ! -z "$API_ID" ] && [ "$API_ID" != "None" ]; then
-          aws apigateway delete-rest-api --rest-api-id $API_ID || echo "API Gateway deletion failed"
+        # Delete old API Gateways
+        OLD_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='simple-serverless-api'].id" --output text)
+        if [ ! -z "$OLD_API_ID" ] && [ "$OLD_API_ID" != "None" ]; then
+          aws apigateway delete-rest-api --rest-api-id $OLD_API_ID || echo "Old API Gateway deletion failed"
         fi
         
-        # Detach policy from IAM role
-        aws iam detach-role-policy --role-name simple-serverless-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole || echo "Policy detach failed"
+        NEW_API_ID=$(aws apigateway get-rest-apis --query "items[?name=='simple-serverless-api-v2'].id" --output text)
+        if [ ! -z "$NEW_API_ID" ] && [ "$NEW_API_ID" != "None" ]; then
+          aws apigateway delete-rest-api --rest-api-id $NEW_API_ID || echo "New API Gateway deletion failed"
+        fi
         
-        # Delete IAM role
-        aws iam delete-role --role-name simple-serverless-lambda-role || echo "IAM role deletion failed"
+        # Detach policies from old and new IAM roles
+        aws iam detach-role-policy --role-name simple-serverless-lambda-role --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole || echo "Old policy detach failed"
+        aws iam detach-role-policy --role-name simple-serverless-lambda-role-v2 --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole || echo "New policy detach failed"
+        
+        # Delete old and new IAM roles
+        aws iam delete-role --role-name simple-serverless-lambda-role || echo "Old IAM role deletion failed"
+        aws iam delete-role --role-name simple-serverless-lambda-role-v2 || echo "New IAM role deletion failed"
         
         # Delete CloudWatch log groups
-        aws logs delete-log-group --log-group-name /aws/lambda/simple-serverless-hello || echo "Log group deletion failed"
+        aws logs delete-log-group --log-group-name /aws/lambda/simple-serverless-hello || echo "Old log group deletion failed"
+        aws logs delete-log-group --log-group-name /aws/lambda/simple-serverless-hello-v2 || echo "New log group deletion failed"
 
     - name: Destroy AWS Resources
       working-directory: terraform
