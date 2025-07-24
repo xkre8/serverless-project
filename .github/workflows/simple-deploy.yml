@@ -3,6 +3,10 @@ name: Simple Deploy
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'terraform/**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
@@ -17,6 +21,8 @@ jobs:
         mkdir -p dist
         cd src/hello
         zip -r ../../dist/hello.zip .
+        cd ../health
+        zip -r ../../dist/health.zip .
     
     - name: Configure AWS
       uses: aws-actions/configure-aws-credentials@v4
@@ -34,6 +40,17 @@ jobs:
         terraform init
         terraform apply -auto-approve
     
-    - name: Get API URL
+    - name: 🎯 Get API URLs
       working-directory: terraform
-      run: terraform output api_url
+      run: |
+        echo "=================================="
+        echo "🚀 DEPLOYMENT SUCCESSFUL!"
+        echo "=================================="
+        echo "📍 API Endpoints:"
+        echo "Hello API: $(terraform output -raw hello_api_url)"
+        echo "Health API: $(terraform output -raw health_api_url)"
+        echo ""
+        echo "🧪 Test your APIs:"
+        echo "curl $(terraform output -raw hello_api_url)"
+        echo "curl $(terraform output -raw health_api_url)"
+        echo "=================================="
