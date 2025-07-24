@@ -1,0 +1,12 @@
+{
+  "name": "simple-serverless",
+  "version": "1.0.0",
+  "description": "Simple serverless project for CI/CD testing",
+  "scripts": {
+    "build": "node build.js",
+    "deploy": "npm run build && cd terraform && terraform apply -auto-approve"
+  },
+  "devDependencies": {
+    "archiver": "^6.0.1"
+  }
+}
