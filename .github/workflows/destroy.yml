@@ -1,0 +1,49 @@
+name: Destroy AWS Resources
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+env:
+  AWS_REGION: ap-southeast-1
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.6.0
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Initialize Terraform
+      working-directory: terraform
+      run: terraform init
+
+    - name: Import existing resources (if needed)
+      working-directory: terraform
+      continue-on-error: true
+      run: |
+        # Try to import existing resources
+        terraform import aws_lambda_function.hello simple-serverless-hello || true
+        terraform import aws_iam_role.lambda_role simple-serverless-lambda-role || true
+
+    - name: Destroy AWS Resources
+      working-directory: terraform
+      run: terraform destroy -auto-approve
+
+    - name: Confirm Destruction
+      run: |
+        echo "🗑️ **AWS Resources Destroyed!**" >> $GITHUB_STEP_SUMMARY
+        echo "All resources have been removed from AWS" >> $GITHUB_STEP_SUMMARY
+        echo "💰 **No more charges will be incurred**" >> $GITHUB_STEP_SUMMARY
