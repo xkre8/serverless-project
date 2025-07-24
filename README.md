@@ -37,3 +37,21 @@ terraform/main.tf           # Infrastructure
 ```
 
 ## Clean & Simple ✨
+
+```
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"message":"Hello from Serverless!","timestamp":"2025-07-24T07:56:35.770Z"}
+RawContent        : HTTP/1.1 200 OK
+                    Connection: keep-alive
+                    X-Amzn-Trace-Id: Root=1-6881e733-2a934d695904ddca6307cac4;Parent=07da56e4a347658e;Sampled=0;Lineage=1:9ee8b440:0
+                    x-amzn-RequestId: 27cd0c11-4017-4b3f-b103-5f3...
+Forms             : {}
+Headers           : {[Connection, keep-alive], [X-Amzn-Trace-Id, Root=1-6881e733-2a934d695904ddca6307cac4;Parent=07da56e4a347658e;Sampled=0;Lineage=1:9ee8b440:0], [x-amzn-RequestId,
+                    27cd0c11-4017-4b3f-b103-5f3abadf4cc7], [Access-Control-Allow-Origin, *]...}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 75
+```
