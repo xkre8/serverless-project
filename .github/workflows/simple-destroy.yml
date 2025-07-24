@@ -48,8 +48,8 @@ jobs:
       run: |
         echo "🚨 Force deleting ALL simple-serverless resources..."
         
-        # Delete Lambda Functions
-        echo "Deleting Lambda functions..."
+        # Delete Lambda Functions first (remove API Gateway dependencies)
+        echo "Step 1: Deleting Lambda functions..."
         aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `simple-serverless`)].FunctionName' --output text | tr '\t' '\n' | while read func; do
           if [ ! -z "$func" ]; then
             echo "Deleting Lambda: $func"
@@ -57,8 +57,44 @@ jobs:
           fi
         done
         
-        # Delete API Gateways
-        echo "Deleting API Gateways..."
+        # Wait a bit for Lambda deletions to propagate
+        echo "Waiting 10 seconds for Lambda deletions to propagate..."
+        sleep 10
+        
+        # Delete API Gateway Stages first
+        echo "Step 2: Deleting API Gateway stages..."
+        aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].id' --output text | tr '\t' '\n' | while read api_id; do
+          if [ ! -z "$api_id" ]; then
+            echo "Deleting stages for API: $api_id"
+            aws apigateway get-stages --rest-api-id "$api_id" --query 'item[].stageName' --output text | tr '\t' '\n' | while read stage; do
+              if [ ! -z "$stage" ]; then
+                echo "Deleting stage: $stage"
+                aws apigateway delete-stage --rest-api-id "$api_id" --stage-name "$stage" || echo "Failed to delete stage $stage"
+              fi
+            done
+          fi
+        done
+        
+        # Delete API Gateway Deployments
+        echo "Step 3: Deleting API Gateway deployments..."
+        aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].id' --output text | tr '\t' '\n' | while read api_id; do
+          if [ ! -z "$api_id" ]; then
+            echo "Deleting deployments for API: $api_id"
+            aws apigateway get-deployments --rest-api-id "$api_id" --query 'items[].id' --output text | tr '\t' '\n' | while read deployment_id; do
+              if [ ! -z "$deployment_id" ]; then
+                echo "Deleting deployment: $deployment_id"
+                aws apigateway delete-deployment --rest-api-id "$api_id" --deployment-id "$deployment_id" || echo "Failed to delete deployment $deployment_id"
+              fi
+            done
+          fi
+        done
+        
+        # Wait a bit more
+        echo "Waiting 10 seconds for API Gateway cleanup..."
+        sleep 10
+        
+        # Now delete API Gateways
+        echo "Step 4: Deleting API Gateways..."
         aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].{id:id,name:name}' --output text | while read -r id name; do
           if [ ! -z "$id" ]; then
             echo "Deleting API Gateway: $name ($id)"
@@ -66,8 +102,8 @@ jobs:
           fi
         done
         
-        # Delete IAM Roles
-        echo "Deleting IAM roles..."
+        # Delete IAM Roles last
+        echo "Step 5: Deleting IAM roles..."
         aws iam list-roles --query 'Roles[?starts_with(RoleName, `simple-serverless`)].RoleName' --output text | tr '\t' '\n' | while read role; do
           if [ ! -z "$role" ]; then
             echo "Processing role: $role"
