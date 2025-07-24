@@ -23,33 +23,52 @@ jobs:
     
     - name: 🗑️ Delete Lambda Functions
       run: |
-        echo "Deleting Lambda functions..."
-        aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `simple-serverless`)].FunctionName' --output text | xargs -r -n1 aws lambda delete-function --function-name
-        echo "Lambda functions deleted!"
+        echo "Deleting ALL simple-serverless Lambda functions..."
+        aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `simple-serverless`)].FunctionName' --output text | tr '\t' '\n' | while read func; do
+          if [ ! -z "$func" ]; then
+            echo "Deleting Lambda: $func"
+            aws lambda delete-function --function-name "$func" || echo "Failed to delete $func"
+          fi
+        done
+        echo "Lambda functions cleanup completed!"
     
     - name: 🗑️ Delete API Gateways
       run: |
-        echo "Deleting API Gateways..."
-        aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].id' --output text | xargs -r -n1 aws apigateway delete-rest-api --rest-api-id
-        echo "API Gateways deleted!"
+        echo "Deleting ALL simple-serverless API Gateways..."
+        aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].{id:id,name:name}' --output text | while read -r id name; do
+          if [ ! -z "$id" ]; then
+            echo "Deleting API Gateway: $name ($id)"
+            aws apigateway delete-rest-api --rest-api-id "$id" || echo "Failed to delete $id"
+          fi
+        done
+        echo "API Gateways cleanup completed!"
     
     - name: 🗑️ Delete IAM Roles
       run: |
-        echo "Deleting IAM roles..."
-        # List and delete role policies first
-        aws iam list-roles --query 'Roles[?starts_with(RoleName, `simple-serverless`)].RoleName' --output text | while read role; do
+        echo "Deleting ALL simple-serverless IAM roles..."
+        aws iam list-roles --query 'Roles[?starts_with(RoleName, `simple-serverless`)].RoleName' --output text | tr '\t' '\n' | while read role; do
           if [ ! -z "$role" ]; then
             echo "Processing role: $role"
             # Detach managed policies
-            aws iam list-attached-role-policies --role-name "$role" --query 'AttachedPolicies[].PolicyArn' --output text | xargs -r -n1 aws iam detach-role-policy --role-name "$role" --policy-arn
+            aws iam list-attached-role-policies --role-name "$role" --query 'AttachedPolicies[].PolicyArn' --output text | tr '\t' '\n' | while read policy; do
+              if [ ! -z "$policy" ]; then
+                echo "Detaching policy: $policy"
+                aws iam detach-role-policy --role-name "$role" --policy-arn "$policy" || echo "Failed to detach $policy"
+              fi
+            done
             # Delete inline policies
-            aws iam list-role-policies --role-name "$role" --query 'PolicyNames[]' --output text | xargs -r -n1 aws iam delete-role-policy --role-name "$role" --policy-name
+            aws iam list-role-policies --role-name "$role" --query 'PolicyNames[]' --output text | tr '\t' '\n' | while read policy; do
+              if [ ! -z "$policy" ]; then
+                echo "Deleting inline policy: $policy"
+                aws iam delete-role-policy --role-name "$role" --policy-name "$policy" || echo "Failed to delete inline policy $policy"
+              fi
+            done
             # Delete role
-            aws iam delete-role --role-name "$role"
-            echo "Deleted role: $role"
+            echo "Deleting role: $role"
+            aws iam delete-role --role-name "$role" || echo "Failed to delete role $role"
           fi
         done
-        echo "IAM roles deleted!"
+        echo "IAM roles cleanup completed!"
     
     - name: ✅ Verify Deletion
       run: |

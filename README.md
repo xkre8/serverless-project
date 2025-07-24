@@ -26,7 +26,14 @@ terraform/main.tf           # Infrastructure
 
 ## Quick Deploy
 1. Push to GitHub → Auto deploy
-2. Get API URL from Actions output
+2. ดู Actions output จะเห็น:
+```
+🚀 DEPLOYMENT SUCCESSFUL!
+📍 API URL: https://xxx.execute-api.ap-southeast-1.amazonaws.com/prod/hello
+🧪 Test your API: curl https://xxx...
+📋 Response: {"message":"Hello from Serverless!","timestamp":"..."}
+✅ API is working!
+```
 
 ## API Response
 ```json

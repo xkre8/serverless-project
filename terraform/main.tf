@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.1"
+    }
   }
 }
 
@@ -11,9 +15,14 @@ provider "aws" {
   region = "ap-southeast-1"
 }
 
+# Random suffix to avoid naming conflicts
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
 # IAM Role for Lambda
 resource "aws_iam_role" "lambda_role" {
-  name = "simple-serverless-lambda-role"
+  name = "simple-serverless-lambda-role-${random_id.suffix.hex}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -32,7 +41,7 @@ resource "aws_iam_role" "lambda_role" {
 # Lambda Function
 resource "aws_lambda_function" "hello" {
   filename         = "../dist/hello.zip"
-  function_name    = "simple-serverless-hello"
+  function_name    = "simple-serverless-hello-${random_id.suffix.hex}"
   role            = aws_iam_role.lambda_role.arn
   handler         = "index.handler"
   runtime         = "nodejs18.x"
@@ -41,7 +50,7 @@ resource "aws_lambda_function" "hello" {
 
 # API Gateway
 resource "aws_api_gateway_rest_api" "api" {
-  name = "simple-serverless-api"
+  name = "simple-serverless-api-${random_id.suffix.hex}"
 }
 
 resource "aws_api_gateway_resource" "hello" {
@@ -95,4 +104,8 @@ resource "aws_api_gateway_stage" "prod" {
 
 output "api_url" {
   value = "https://${aws_api_gateway_rest_api.api.id}.execute-api.ap-southeast-1.amazonaws.com/prod/hello"
+}
+
+output "resource_suffix" {
+  value = random_id.suffix.hex
 }
