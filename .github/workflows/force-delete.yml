@@ -1,0 +1,71 @@
+name: Force Delete AWS Resources
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type FORCE-DELETE to confirm'
+        required: true
+        default: ''
+
+jobs:
+  force-delete:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'FORCE-DELETE'
+    
+    steps:
+    - name: Configure AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-southeast-1
+    
+    - name: 🗑️ Delete Lambda Functions
+      run: |
+        echo "Deleting Lambda functions..."
+        aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `simple-serverless`)].FunctionName' --output text | xargs -r -n1 aws lambda delete-function --function-name
+        echo "Lambda functions deleted!"
+    
+    - name: 🗑️ Delete API Gateways
+      run: |
+        echo "Deleting API Gateways..."
+        aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].id' --output text | xargs -r -n1 aws apigateway delete-rest-api --rest-api-id
+        echo "API Gateways deleted!"
+    
+    - name: 🗑️ Delete IAM Roles
+      run: |
+        echo "Deleting IAM roles..."
+        # List and delete role policies first
+        aws iam list-roles --query 'Roles[?starts_with(RoleName, `simple-serverless`)].RoleName' --output text | while read role; do
+          if [ ! -z "$role" ]; then
+            echo "Processing role: $role"
+            # Detach managed policies
+            aws iam list-attached-role-policies --role-name "$role" --query 'AttachedPolicies[].PolicyArn' --output text | xargs -r -n1 aws iam detach-role-policy --role-name "$role" --policy-arn
+            # Delete inline policies
+            aws iam list-role-policies --role-name "$role" --query 'PolicyNames[]' --output text | xargs -r -n1 aws iam delete-role-policy --role-name "$role" --policy-name
+            # Delete role
+            aws iam delete-role --role-name "$role"
+            echo "Deleted role: $role"
+          fi
+        done
+        echo "IAM roles deleted!"
+    
+    - name: ✅ Verify Deletion
+      run: |
+        echo "=================================="
+        echo "🔍 Verifying deletion..."
+        echo "=================================="
+        
+        echo "Lambda functions:"
+        aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `simple-serverless`)].FunctionName' --output table || echo "No Lambda functions found"
+        
+        echo "API Gateways:"
+        aws apigateway get-rest-apis --query 'items[?starts_with(name, `simple-serverless`)].{Name:name,Id:id}' --output table || echo "No API Gateways found"
+        
+        echo "IAM Roles:"
+        aws iam list-roles --query 'Roles[?starts_with(RoleName, `simple-serverless`)].{RoleName:RoleName}' --output table || echo "No IAM roles found"
+        
+        echo "=================================="
+        echo "🎉 Force deletion completed!"
+        echo "=================================="
